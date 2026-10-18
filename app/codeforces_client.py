@@ -13,61 +13,48 @@ class CodeforcesClient:
     def close(self):
         self.client.close()
 
-    def get_user_info(self, handle: str) -> dict:
+    def _get_result(
+        self,
+        endpoint: str,
+        params: dict | None = None,
+    ) -> dict | list:    
         response = self.client.get(
+            endpoint,
+            params=params,
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        if data["status"] != "OK":
+            raise ValueError(
+                data.get("comment", "Codeforces API error")
+            )
+
+        return data["result"]
+
+    def get_user_info(self, handle: str) -> dict:
+        result = self._get_result(
             "/user.info",
             params={"handles": handle},
         )
 
-        response.raise_for_status()
-
-        data = response.json()
-
-        if data["status"] != "OK":
-            raise ValueError(data.get("comment", "Codeforces API error"))
-
-        return data["result"][0]
+        return result[0]
 
     def get_user_rating(self, handle: str) -> list[dict]:
-        response = self.client.get(
+        return self._get_result(
             "/user.rating",
             params={"handle": handle},
         )
 
-        response.raise_for_status()
-
-        data = response.json()
-
-        if data["status"] != "OK":
-            raise ValueError(data.get("comment", "Codeforces API error"))
-
-        return data["result"]
-
     def get_user_submissions(self, handle: str) -> list[dict]:
-        response = self.client.get(
+        return self._get_result(
             "/user.status",
             params={"handle": handle},
         )
 
-        response.raise_for_status()
-
-        data = response.json()
-
-        if data["status"] != "OK":
-            raise ValueError(data.get("comment", "Codeforces API error"))
-
-        return data["result"]
-
     def get_problemset(self) -> dict:
-        response = self.client.get(
+        return self._get_result(
             "/problemset.problems",
         )
-
-        response.raise_for_status()
-
-        data = response.json()
-
-        if data["status"] != "OK":
-            raise ValueError(data.get("comment", "Codeforces API error"))
-
-        return data["result"]

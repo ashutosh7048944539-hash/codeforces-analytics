@@ -4,6 +4,7 @@ from sqlalchemy import text
 from app.database import engine
 
 
+
 app = FastAPI(
     title="Codeforces Analytics & Practice Recommender",
     version="0.1.0",

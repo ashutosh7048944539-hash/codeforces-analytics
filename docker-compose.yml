@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: codeforces_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cf_user
+      POSTGRES_PASSWORD: cf_password
+      POSTGRES_DB: codeforces
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

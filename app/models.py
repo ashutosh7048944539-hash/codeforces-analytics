@@ -1,8 +1,9 @@
-from sqlalchemy import ForeignKey, Integer, String
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-
 
 class User(Base):
     __tablename__ = "users"
@@ -36,6 +37,11 @@ class User(Base):
 
     max_rank: Mapped[str | None] = mapped_column(
         String(30),
+        nullable=True,
+    )
+
+    last_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
         nullable=True,
     )
 

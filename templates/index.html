@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Codeforces Analytics</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        header {
+            background: #1f2937;
+            color: white;
+            padding: 20px 40px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        header p {
+            margin: 6px 0 0;
+            color: #d1d5db;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .search-box {
+            background: white;
+            padding: 24px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 25px;
+        }
+
+        .search-box h2 {
+            margin-top: 0;
+        }
+
+        .search-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-form input {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        .search-form button {
+            padding: 12px 22px;
+            border: none;
+            border-radius: 6px;
+            background: #2563eb;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .search-form button:hover {
+            background: #1d4ed8;
+        }
+
+        .search-form button:disabled {
+            background: #93c5fd;
+            cursor: not-allowed;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(
+                auto-fit,
+                minmax(180px, 1fr)
+            );
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .stat-card h3 {
+            margin: 0 0 10px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .stat-card p {
+            margin: 0;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .section {
+            background: white;
+            padding: 24px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 25px;
+        }
+
+        .section h2 {
+            margin-top: 0;
+        }
+
+        /* Rating Chart */
+
+        .chart-container {
+            position: relative;
+            height: 350px;
+        }
+
+        /* Weak Topics */
+
+        .weak-topic-description {
+            margin: -8px 0 14px;
+            color: #6b7280;
+            font-size: 13px;
+        }
+
+        .weak-topic-list {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .weak-topic-card {
+            padding: 9px 11px;
+            background: #f9fafb;
+            border-radius: 7px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .weak-topic-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 3px;
+        }
+
+        .weak-topic-name {
+            font-size: 14px;
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .weak-topic-rate {
+            font-size: 13px;
+            font-weight: bold;
+            color: #dc2626;
+            flex-shrink: 0;
+        }
+
+        .weak-topic-info {
+            margin-bottom: 5px;
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 5px;
+            background: #e5e7eb;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #ef4444;
+            border-radius: 999px;
+        }
+
+        /* Recommended Problems */
+
+        .recommendation-list {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .recommendation-card {
+            padding: 16px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+
+        .recommendation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .recommendation-name {
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.3;
+        }
+
+        .recommendation-rating {
+            flex-shrink: 0;
+            padding: 4px 8px;
+            background: #e5e7eb;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .recommendation-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .tag {
+            padding: 3px 7px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            color: #4b5563;
+            font-size: 11px;
+        }
+
+        .recommendation-match {
+            margin-bottom: 8px;
+            color: #4b5563;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .recommendation-score {
+            margin-bottom: 14px;
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .solve-button {
+            display: inline-block;
+            padding: 8px 12px;
+            background: #2563eb;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+
+        .solve-button:hover {
+            background: #1d4ed8;
+        }
+
+        .placeholder {
+            padding: 40px;
+            text-align: center;
+            color: #6b7280;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .error {
+            margin-top: 15px;
+            padding: 12px;
+            background: #fee2e2;
+            color: #991b1b;
+            border-radius: 6px;
+            display: none;
+        }
+
+        /* Tablet */
+
+        @media (max-width: 900px) {
+
+            .weak-topic-list {
+                grid-template-columns: repeat(
+                    2,
+                    minmax(0, 1fr)
+                );
+            }
+
+            .recommendation-list {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Mobile */
+
+        @media (max-width: 600px) {
+
+            .search-form {
+                flex-direction: column;
+            }
+
+            header {
+                padding: 20px;
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+
+            .weak-topic-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+
+    <h1>Codeforces Analytics</h1>
+
+    <p>
+        Analyze your performance and discover what to practice next.
+    </p>
+
+</header>
+
+
+<main>
+
+    <div class="search-box">
+
+        <h2>Analyze a Codeforces User</h2>
+
+        <div class="search-form">
+
+            <input
+                type="text"
+                id="handle"
+                placeholder="Enter Codeforces handle"
+            >
+
+            <button id="analyze-button">
+                Analyze
+            </button>
+
+        </div>
+
+        <div
+            id="error-message"
+            class="error"
+        ></div>
+
+    </div>
+
+
+    <div class="stats">
+
+        <div class="stat-card">
+
+            <h3>Current Rating</h3>
+
+            <p id="current-rating">—</p>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <h3>Maximum Rating</h3>
+
+            <p id="max-rating">—</p>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <h3>Problems Solved</h3>
+
+            <p id="solved-count">—</p>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <h3>Rank</h3>
+
+            <p id="rank">—</p>
+
+        </div>
+
+    </div>
+
+
+    <div class="section">
+
+        <h2>Rating History</h2>
+
+        <div class="chart-container">
+
+            <canvas id="rating-chart"></canvas>
+
+        </div>
+
+    </div>
+
+
+    <div class="section">
+
+        <h2>Weak Topics</h2>
+
+        <p class="weak-topic-description">
+            Success rate = percentage of your submissions for
+            problems with this topic that were accepted.
+        </p>
+
+        <div
+            id="weak-topic-list"
+            class="weak-topic-list"
+        >
+
+            <div class="placeholder">
+                Analyze a user to see weak topics.
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div class="section">
+
+        <h2>Recommended Problems</h2>
+
+        <div
+            id="recommendation-list"
+            class="recommendation-list"
+        >
+
+            <div class="placeholder">
+                Analyze a user to get personalized recommendations.
+            </div>
+
+        </div>
+
+    </div>
+
+</main>
+
+
+<script>
+
+    const analyzeButton =
+        document.getElementById(
+            "analyze-button"
+        );
+
+
+    const handleInput =
+        document.getElementById(
+            "handle"
+        );
+
+
+    const errorMessage =
+        document.getElementById(
+            "error-message"
+        );
+
+
+    let ratingChart = null;
+
+
+    function renderRatingChart(
+        ratingHistory
+    ) {
+
+        const labels =
+            ratingHistory.map(
+                (contest) =>
+                    contest.contest_name
+            );
+
+
+        const ratings =
+            ratingHistory.map(
+                (contest) =>
+                    contest.new_rating
+            );
+
+
+        const chartContext =
+            document
+                .getElementById(
+                    "rating-chart"
+                )
+                .getContext("2d");
+
+
+        if (ratingChart !== null) {
+
+            ratingChart.destroy();
+
+        }
+
+
+        ratingChart = new Chart(
+            chartContext,
+            {
+
+                type: "line",
+
+                data: {
+
+                    labels: labels,
+
+                    datasets: [
+
+                        {
+
+                            label:
+                                "Codeforces Rating",
+
+                            data: ratings,
+
+                            borderWidth: 2,
+
+                            tension: 0.2,
+
+                            pointRadius: 3,
+
+                            pointHoverRadius: 7
+
+                        }
+
+                    ]
+
+                },
+
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    interaction: {
+
+                        mode: "nearest",
+
+                        intersect: true
+
+                    },
+
+
+                    plugins: {
+
+                        tooltip: {
+
+                            callbacks: {
+
+                                title:
+                                    function(
+                                        tooltipItems
+                                    ) {
+
+                                        const index =
+                                            tooltipItems[0]
+                                                .dataIndex;
+
+                                        return labels[index];
+
+                                    },
+
+
+                                label:
+                                    function(
+                                        tooltipItem
+                                    ) {
+
+                                        const index =
+                                            tooltipItem
+                                                .dataIndex;
+
+
+                                        const contest =
+                                            ratingHistory[
+                                                index
+                                            ];
+
+
+                                        const ratingChange =
+                                            contest.new_rating
+                                            -
+                                            contest.old_rating;
+
+
+                                        const changeText =
+                                            ratingChange > 0
+                                                ? `+${ratingChange}`
+                                                : `${ratingChange}`;
+
+
+                                        return [
+
+                                            `Rating: ${contest.new_rating}`,
+
+                                            `Rating Change: ${changeText}`,
+
+                                            `Contest ID: ${contest.contest_id}`
+
+                                        ];
+
+                                    }
+
+                            }
+
+                        }
+
+                    },
+
+
+                    scales: {
+
+                        y: {
+
+                            beginAtZero: false,
+
+                            title: {
+
+                                display: true,
+
+                                text: "Rating"
+
+                            }
+
+                        },
+
+
+                        x: {
+
+                            title: {
+
+                                display: true,
+
+                                text: "Contest"
+
+                            },
+
+
+                            ticks: {
+
+                                display: false
+
+                            },
+
+
+                            grid: {
+
+                                display: true
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        );
+
+    }
+
+
+    function renderWeakTopics(
+        weakTopics
+    ) {
+
+        const container =
+            document.getElementById(
+                "weak-topic-list"
+            );
+
+
+        container.innerHTML = "";
+
+
+        if (
+            !weakTopics ||
+            weakTopics.length === 0
+        ) {
+
+            container.innerHTML = `
+                <div class="placeholder">
+                    No weak topics found.
+                </div>
+            `;
+
+            return;
+
+        }
+
+
+        weakTopics.forEach(
+            (topic) => {
+
+                const percentage =
+                    Math.round(
+                        topic.success_rate * 100
+                    );
+
+
+                const card =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                card.className =
+                    "weak-topic-card";
+
+
+                card.innerHTML = `
+
+                    <div class="weak-topic-header">
+
+                        <span
+                            class="weak-topic-name"
+                            title="${topic.tag}"
+                        >
+                            ${topic.tag}
+                        </span>
+
+
+                        <span
+                            class="weak-topic-rate"
+                            title="Success rate"
+                        >
+                            ${percentage}%
+                        </span>
+
+                    </div>
+
+
+                    <div class="weak-topic-info">
+                        ${topic.submissions} submissions
+                    </div>
+
+
+                    <div class="progress-bar">
+
+                        <div
+                            class="progress-fill"
+                            style="width: ${percentage}%"
+                        ></div>
+
+                    </div>
+
+                `;
+
+
+                container.appendChild(
+                    card
+                );
+
+            }
+        );
+
+    }
+
+
+    function renderRecommendations(
+        recommendations,
+        weakTopics
+    ) {
+
+        const container =
+            document.getElementById(
+                "recommendation-list"
+            );
+
+
+        container.innerHTML = "";
+
+
+        if (
+            !recommendations ||
+            recommendations.length === 0
+        ) {
+
+            container.innerHTML = `
+                <div class="placeholder">
+                    No suitable unsolved problems found.
+                </div>
+            `;
+
+            return;
+
+        }
+
+
+        const weakTagSet =
+            new Set(
+                (weakTopics || []).map(
+                    (topic) =>
+                        topic.tag
+                            .trim()
+                            .toLowerCase()
+                )
+            );
+
+
+        recommendations.forEach(
+            (problem) => {
+
+                const card =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                card.className =
+                    "recommendation-card";
+
+
+                const problemTags =
+                    problem.tags
+                        ? problem.tags
+                            .split(",")
+                            .map(
+                                (tag) =>
+                                    tag.trim()
+                            )
+                            .filter(
+                                (tag) =>
+                                    tag.length > 0
+                            )
+                        : [];
+
+
+                const matchingTags =
+                    problemTags.filter(
+                        (tag) =>
+                            weakTagSet.has(
+                                tag.toLowerCase()
+                            )
+                    );
+
+
+                const problemUrl =
+                    `https://codeforces.com/problemset/problem/${problem.contest_id}/${problem.problem_index}`;
+
+
+                const tags =
+                    problemTags
+                        .map(
+                            (tag) =>
+                                `<span class="tag">${tag}</span>`
+                        )
+                        .join("");
+
+
+                let matchText;
+
+
+                if (
+                    matchingTags.length === 0
+                ) {
+
+                    matchText =
+                        "Matches your target difficulty range";
+
+                } else {
+
+                    const matchCount =
+                        matchingTags.length;
+
+
+                    matchText =
+                        matchCount === 1
+                            ? "Matches 1 of your weak topics"
+                            : `Matches ${matchCount} of your weak topics`;
+
+                }
+
+
+                card.innerHTML = `
+
+                    <div class="recommendation-header">
+
+                        <h3 class="recommendation-name">
+
+                            ${problem.problem_index}.
+                            ${problem.name}
+
+                        </h3>
+
+
+                        <span class="recommendation-rating">
+                            ${problem.rating}
+                        </span>
+
+                    </div>
+
+
+                    <div class="recommendation-tags">
+
+                        ${tags}
+
+                    </div>
+
+
+                    <div class="recommendation-match">
+
+                        ${matchText}
+
+                    </div>
+
+
+                    <div class="recommendation-score">
+
+                        Recommendation score:
+                        <strong>
+                            ${problem.score}
+                        </strong>
+
+                    </div>
+
+
+                    <a
+                        class="solve-button"
+                        href="${problemUrl}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Solve Problem
+                    </a>
+
+                `;
+
+
+                container.appendChild(
+                    card
+                );
+
+            }
+        );
+
+    }
+
+
+    analyzeButton.addEventListener(
+        "click",
+        async () => {
+
+            const handle =
+                handleInput.value.trim();
+
+
+            if (!handle) {
+
+                errorMessage.textContent =
+                    "Please enter a Codeforces handle.";
+
+                errorMessage.style.display =
+                    "block";
+
+                return;
+
+            }
+
+
+            errorMessage.style.display =
+                "none";
+
+
+            analyzeButton.disabled =
+                true;
+
+
+            analyzeButton.textContent =
+                "Loading...";
+
+
+            try {
+
+                const analyticsResponse =
+                    await fetch(
+                        `/users/${encodeURIComponent(handle)}/analytics`
+                    );
+
+
+                if (!analyticsResponse.ok) {
+
+                    throw new Error(
+                        "User not found or analytics unavailable."
+                    );
+
+                }
+
+
+                const analyticsData =
+                    await analyticsResponse.json();
+
+
+                const ratingResponse =
+                    await fetch(
+                        `/users/${encodeURIComponent(handle)}/rating-history`
+                    );
+
+
+                if (!ratingResponse.ok) {
+
+                    throw new Error(
+                        "Could not load rating history."
+                    );
+
+                }
+
+
+                const ratingData =
+                    await ratingResponse.json();
+
+
+                const recommendationResponse =
+                    await fetch(
+                        `/users/${encodeURIComponent(handle)}/recommendations`
+                    );
+
+
+                if (!recommendationResponse.ok) {
+
+                    throw new Error(
+                        "Could not load recommendations."
+                    );
+
+                }
+
+
+                const recommendationData =
+                    await recommendationResponse.json();
+
+
+                document.getElementById(
+                    "current-rating"
+                ).textContent =
+                    analyticsData.current_rating
+                    ?? "—";
+
+
+                document.getElementById(
+                    "max-rating"
+                ).textContent =
+                    analyticsData.max_rating
+                    ?? "—";
+
+
+                document.getElementById(
+                    "solved-count"
+                ).textContent =
+                    analyticsData.solved_count
+                    ?? "—";
+
+
+                document.getElementById(
+                    "rank"
+                ).textContent =
+                    analyticsData.rank
+                    ?? "—";
+
+
+                renderRatingChart(
+                    ratingData.rating_history
+                );
+
+
+                renderWeakTopics(
+                    analyticsData.weak_topics
+                );
+
+
+                renderRecommendations(
+                    recommendationData.recommendations,
+                    analyticsData.weak_topics
+                );
+
+
+            } catch (error) {
+
+                console.error(error);
+
+
+                errorMessage.textContent =
+                    error.message ||
+                    "Could not load Codeforces data.";
+
+
+                errorMessage.style.display =
+                    "block";
+
+            } finally {
+
+                analyzeButton.disabled =
+                    false;
+
+
+                analyzeButton.textContent =
+                    "Analyze";
+
+            }
+
+        }
+    );
+
+</script>
+
+
+</body>
+</html>

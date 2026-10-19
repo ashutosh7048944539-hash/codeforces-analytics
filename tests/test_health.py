@@ -10,14 +10,13 @@ def test_root():
     response = client.get("/")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "message": "Codeforces Analytics API",
-        "status": "running",
-    }
+    assert "Codeforces Analytics" in response.text
 
 
 def test_health():
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {
+        "status": "ok",
+    }

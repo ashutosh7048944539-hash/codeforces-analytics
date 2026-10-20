@@ -3,7 +3,7 @@ from fastapi import (
     Depends,
     HTTPException,
 )
-
+from app.services.analytics_event_service import record_event
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -60,12 +60,20 @@ def rating_history(
 @router.get("/{handle}/analytics")
 def user_analytics(
     handle: str,
+    source: str | None = None,
     db: Session = Depends(get_db),
 ):
     try:
         user = sync_user(
             db,
             handle,
+        )
+
+        record_event(
+            db,
+            event_type="analysis_started",
+            handle=user.handle,
+            source=source,
         )
     except ValueError as error:
         raise HTTPException(

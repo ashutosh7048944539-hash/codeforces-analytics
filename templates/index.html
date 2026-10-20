@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
 
@@ -978,6 +979,35 @@
     }
 
 
+    /*
+     * Usage tracking
+     *
+     * Example:
+     * https://codeforces-analytics-2g9d.onrender.com/?source=whatsapp
+     *
+     * The source is saved in localStorage so that
+     * subsequent analyses from the same browser
+     * continue to carry the campaign source.
+     */
+
+    const sourceParam =
+        new URLSearchParams(window.location.search).get("source");
+
+
+    if (sourceParam) {
+
+        localStorage.setItem(
+            "analytics_source",
+            sourceParam
+        );
+
+    }
+
+
+    const analyticsSource =
+        localStorage.getItem("analytics_source");
+
+
     analyzeButton.addEventListener(
         "click",
         async () => {
@@ -1013,9 +1043,18 @@
 
             try {
 
+                const analyticsUrl =
+                    `/users/${encodeURIComponent(handle)}/analytics` +
+                    (
+                        analyticsSource
+                            ? `?source=${encodeURIComponent(analyticsSource)}`
+                            : ""
+                    );
+
+
                 const analyticsResponse =
                     await fetch(
-                        `/users/${encodeURIComponent(handle)}/analytics`
+                        analyticsUrl
                     );
 
 
@@ -1145,4 +1184,5 @@
 
 
 </body>
+
 </html>

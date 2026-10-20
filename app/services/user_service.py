@@ -43,6 +43,31 @@ def is_user_cache_fresh(
     )
 
 
+def has_analytics_data(
+    db: Session,
+    user: User,
+) -> bool:
+    has_rating = (
+        db.query(Rating.id)
+        .filter(
+            Rating.user_id == user.id,
+        )
+        .first()
+        is not None
+    )
+
+    has_submission = (
+        db.query(Submission.id)
+        .filter(
+            Submission.user_id == user.id,
+        )
+        .first()
+        is not None
+    )
+
+    return has_rating and has_submission
+
+
 def save_user(
     db: Session,
     user_data: dict,
@@ -251,6 +276,7 @@ def sync_user(
         not force
         and user is not None
         and is_user_cache_fresh(user)
+        and has_analytics_data(db, user)
     ):
         print(
             f"Cache hit: "

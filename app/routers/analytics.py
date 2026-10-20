@@ -1,6 +1,5 @@
 from fastapi import (
     APIRouter,
-    BackgroundTasks,
     Depends,
     HTTPException,
 )
@@ -20,9 +19,7 @@ from app.services.analytics_service import (
 )
 
 from app.services.user_service import (
-    background_sync_user,
     sync_user,
-    sync_user_profile,
 )
 
 
@@ -63,11 +60,10 @@ def rating_history(
 @router.get("/{handle}/analytics")
 def user_analytics(
     handle: str,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     try:
-        user = sync_user_profile(
+        user = sync_user(
             db,
             handle,
         )
@@ -76,11 +72,6 @@ def user_analytics(
             status_code=404,
             detail=str(error),
         )
-
-    background_tasks.add_task(
-        background_sync_user,
-        handle,
-    )
 
     return {
         "handle": user.handle,

@@ -484,3 +484,51 @@ def test_get_recommendations_respects_limit():
 
     db.close()
     engine.dispose()
+
+def test_get_candidate_problems_handles_high_rated_user():
+    engine, SessionLocal = create_test_database()
+    db = SessionLocal()
+
+    user = User(
+        handle="highrateduser",
+        rating=3442,
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    problems = [
+        Problem(
+            contest_id=1,
+            problem_index="A",
+            name="3500 Problem",
+            rating=3500,
+            tags="dp",
+        ),
+        Problem(
+            contest_id=2,
+            problem_index="A",
+            name="3400 Problem",
+            rating=3400,
+            tags="graphs",
+        ),
+    ]
+
+    db.add_all(problems)
+    db.commit()
+
+    candidates = get_candidate_problems(
+        db,
+        user.id,
+    )
+
+    assert len(candidates) > 0
+
+    assert all(
+        problem.rating <= 3500
+        for problem in candidates
+    )
+
+    db.close()
+    engine.dispose()

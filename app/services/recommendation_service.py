@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
+
+from app.models import Problem, Submission, User
 from app.services.analytics_service import get_weak_topics
-from app.models import User, Problem, Submission
 
 
 def get_user_rating(
@@ -21,10 +22,11 @@ def get_user_rating(
 
     return user.rating
 
-def get_candidate_problems(
+
+def is_fallback_candidate(
     db: Session,
     user_id: int,
-) -> list:
+) -> bool:
     user_rating = get_user_rating(
         db,
         user_id,
@@ -33,17 +35,19 @@ def get_candidate_problems(
     minimum_rating = user_rating + 100
     maximum_rating = user_rating + 300
 
-    problems = (
-        db.query(Problem)
+    has_normal_candidates = (
+        db.query(Problem.id)
         .filter(
             Problem.rating.is_not(None),
             Problem.rating >= minimum_rating,
             Problem.rating <= maximum_rating,
         )
-        .all()
+        .first()
+        is not None
     )
 
-    return problems
+    return not has_normal_candidates
+
 
 def get_weak_tags(
     db: Session,
@@ -58,6 +62,7 @@ def get_weak_tags(
         topic["tag"]
         for topic in weak_topics
     }
+
 
 def filter_by_weak_tags(
     problems: list,
@@ -82,6 +87,68 @@ def filter_by_weak_tags(
             filtered_problems.append(problem)
 
     return filtered_problems
+
+
+def get_candidate_problems(
+    db: Session,
+    user_id: int,
+) -> list:
+    user_rating = get_user_rating(
+        db,
+        user_id,
+    )
+
+    minimum_rating = user_rating + 100
+    maximum_rating = user_rating + 300
+
+    problems = (
+        db.query(Problem)
+        .filter(
+            Problem.rating.is_not(None),
+            Problem.rating >= minimum_rating,
+            Problem.rating <= maximum_rating,
+        )
+        .all()
+    )
+
+    # For very highly rated users, Codeforces may not have
+    # problems in the normal target range because problem
+    # ratings have an upper limit.
+    #
+    # Fall back to the highest-rated available problems.
+    if not problems:
+        maximum_problem_rating = (
+            db.query(Problem.rating)
+            .filter(
+                Problem.rating.is_not(None),
+            )
+            .order_by(Problem.rating.desc())
+            .first()
+        )
+
+        if maximum_problem_rating is None:
+            return []
+
+        maximum_problem_rating = maximum_problem_rating[0]
+
+        minimum_rating = max(
+            0,
+            maximum_problem_rating - 200,
+        )
+        maximum_rating = maximum_problem_rating
+
+        problems = (
+            db.query(Problem)
+            .filter(
+                Problem.rating.is_not(None),
+                Problem.rating >= minimum_rating,
+                Problem.rating <= maximum_rating,
+            )
+            .all()
+        )
+
+    return problems
+
 
 def get_solved_problem_keys(
     db: Session,
@@ -108,6 +175,7 @@ def get_solved_problem_keys(
         for contest_id, problem_index in solved_problems
     }
 
+
 def filter_unsolved_problems(
     problems: list,
     solved_keys: set[tuple[int | None, str]],
@@ -120,6 +188,7 @@ def filter_unsolved_problems(
             problem.problem_index,
         ) not in solved_keys
     ]
+
 
 def score_problem(
     problem,
@@ -178,6 +247,7 @@ def score_problem(
         + 0.2 * difficulty_score
     )
 
+
 def rank_problems(
     problems: list,
     user_rating: int,
@@ -211,12 +281,18 @@ def rank_problems(
         for _, problem in scored_problems
     ]
 
+
 def get_recommendations(
     db: Session,
     user_id: int,
     limit: int = 10,
 ) -> list[dict]:
     user_rating = get_user_rating(
+        db,
+        user_id,
+    )
+
+    fallback = is_fallback_candidate(
         db,
         user_id,
     )
@@ -285,16 +361,19 @@ def get_recommendations(
                     problem,
                     user_rating,
                     weak_tags,
+                    fallback,
                 ),
             }
         )
 
     return recommendations
 
+
 def explain_recommendation(
     problem,
     user_rating: int,
     weak_tags: set[str],
+    fallback: bool = False,
 ) -> str:
     problem_tags = {
         tag.strip()
@@ -305,6 +384,33 @@ def explain_recommendation(
     matching_tags = sorted(
         problem_tags & weak_tags
     )
+
+    if fallback:
+        if matching_tags:
+            if len(matching_tags) == 1:
+                tags_text = matching_tags[0]
+
+                return (
+                    f"Recommended because {tags_text} "
+                    f"is one of your weak topics and this "
+                    f"problem is among the highest-rated "
+                    f"available problems for your current rating."
+                )
+
+            tags_text = ", ".join(matching_tags)
+
+            return (
+                f"Recommended because this problem matches "
+                f"{len(matching_tags)} of your weak topics "
+                f"({tags_text}) and is among the highest-rated "
+                f"available problems for your current rating."
+            )
+
+        return (
+            f"Recommended because this problem is among the "
+            f"highest-rated available problems for your "
+            f"current rating."
+        )
 
     if matching_tags:
         if len(matching_tags) == 1:

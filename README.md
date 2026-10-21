@@ -5,16 +5,26 @@ A full-stack dashboard that analyzes a Codeforces user's performance and recomme
 **Live demo:** https://codeforces-analytics-2g9d.onrender.com
 (If the app has been idle, the first request may take a while to wake up.)
 
-[TODO: add a screenshot or GIF of the dashboard here, e.g. `![Dashboard](docs/dashboard.png)`]
+## Screenshots
+
+Dashboard: summary cards and rating history.
+
+![Dashboard with rating history](docs/dashboard.png)
+
+Weak topics, with the success rate and number of submissions behind each one.
+
+![Weak topics](docs/weak-topics.png)
+
+Recommended problems, each with its tags, difficulty, number of matched weak topics, and score.
+
+![Recommended problems](docs/recommendations.png)
 
 ## At a glance
 
 | | |
 |---|---|
-| Tests | 41 passing, run in CI against a real PostgreSQL |
-| Real users | [TODO: N students/users so far] |
+| Tests | 44 passing, run in CI against a real PostgreSQL |
 | Recommendation quality | [TODO: backtest result, e.g. "matches X% of next-solved tags"] |
-| First sync time | [TODO: e.g. "N submissions in X s"] |
 
 ## Features
 
@@ -25,6 +35,7 @@ A full-stack dashboard that analyzes a Codeforces user's performance and recomme
 - Personalized problem recommendations with explanations
 - Recommendation difficulty that adapts to the user's current rating
 - PostgreSQL persistence, Alembic migrations, Docker, pytest, GitHub Actions CI
+- Lightweight usage/campaign analytics for tracking analysis starts and traffic sources
 
 ## Quick start (Docker)
 
@@ -60,22 +71,21 @@ The engine:
 
 1. Reads the user's current rating.
 2. Finds topics where the user's success rate is low.
-3. Selects problems around the target difficulty, centered at roughly `current rating + 200`.
+3. Selects problems rated between `current rating + 100` and `current rating + 300`. If no problem exists in that range, the system falls back to the highest-rated available problems within 200 rating points of the maximum problem rating in the database.
 4. Keeps problems that match weak topics and removes problems the user has already solved.
 5. Scores what remains and returns the top results with an explanation for each.
 
 **Score** (higher is better):
 
 ```text
-score = [TODO: w1] * weak_topic_coverage
-      + [TODO: w2] * weakness_severity
-      + [TODO: w3] * difficulty_suitability
+score = 0.5 * weak_topic_coverage
+      + 0.3 * weakness_severity
+      + 0.2 * difficulty_suitability
 ```
 
-- `weak_topic_coverage`: [TODO: define, e.g. fraction of the problem's tags that are weak topics]
-- `weakness_severity`: [TODO: define, e.g. 1 - success rate of the weakest matching tag]
-- `difficulty_suitability`: [TODO: define, e.g. closeness of the problem's rating to the target]
-- A topic counts as weak when [TODO: exact rule, including any minimum number of attempts].
+- `weak_topic_coverage`: the number of the problem's tags that are weak topics, divided by 5 and capped at 1.
+- `weakness_severity`: the average of (1 - success rate) over the problem's matching weak topics.
+- `difficulty_suitability`: 1 - |problem rating - (current rating + 200)| / 200, floored at 0.
 
 ## API
 
@@ -106,10 +116,11 @@ Problem
 
 | Table | Stores |
 |---|---|
-| User | Codeforces profile information |
-| Rating | Contest rating changes |
-| Submission | Submitted solutions and their verdicts |
-| Problem | The Codeforces problemset used for recommendations |
+| `User` | Codeforces profile information |
+| `Rating` | Contest rating changes |
+| `Submission` | Submitted solutions and their verdicts |
+| `Problem` | The Codeforces problemset used for recommendations |
+| `AnalyticsEvent` | Usage and campaign events such as analysis starts and traffic sources |
 
 Schema changes are managed with Alembic.
 
@@ -119,7 +130,7 @@ Schema changes are managed with Alembic.
 - **Routers and services are separate.** Routers handle HTTP only; analytics, problems, users, and recommendations live in service modules, which keeps them testable without a web server.
 - **Rate limiting in the Codeforces client.** Requests are throttled to respect the official API limits, and this behavior is covered by tests.
 - **Explainable recommendations.** Each result carries a human-readable reason, so users can see why a problem was suggested.
-- [TODO: add 1-2 decisions with the tradeoff, e.g. why this scoring approach, why this weak-topic rule]
+- **Caching and synchronization.** User data is reused while the cache is fresh, but a fresh profile is re-synchronized if its rating or submission analytics data is missing. This prevents partially populated users from producing empty analytics or recommendations.
 
 ## Testing and CI
 
@@ -127,7 +138,7 @@ Schema changes are managed with Alembic.
 pytest
 ```
 
-The suite has 41 tests: service layer, API, Codeforces client, rate limiting, recommendations, health endpoints, and PostgreSQL integration tests.
+The suite has 44 tests covering the service layer, API, Codeforces client, rate limiting, recommendations, caching, analytics, health endpoints, and PostgreSQL integration.
 
 GitHub Actions starts PostgreSQL, installs dependencies, runs Alembic migrations, and runs the full suite on every push to `main` and every pull request targeting `main`.
 
@@ -164,8 +175,8 @@ Open http://localhost:8000.
 ```text
 codeforces-analytics/
 ├── app/
-│   ├── routers/            # analytics.py, health.py, recommendations.py
-│   ├── services/           # analytics, problem, recommendation, user services
+│   ├── routers/             # analytics.py, health.py, recommendations.py
+│   ├── services/            # analytics, analytics events, problem, recommendation, user services
 │   ├── codeforces_client.py
 │   ├── config.py
 │   ├── database.py
@@ -189,8 +200,8 @@ Deployed on Render as a Docker web service with a Render PostgreSQL database. Th
 
 ## Known limitations
 
-- The problemset is downloaded only when the database has no problems, so problems from newer contests are not added automatically. [TODO: remove this line once a refresh job exists]
-- Codeforces API responses are not cached yet; each sync calls the API directly.
+- The problemset is downloaded only when the database has no problems, so problems from newer contests are not added automatically. 
+- Codeforces API responses are not persistently cached; user synchronization is skipped while the stored user data is fresh and complete.
 - No authentication or per-user accounts.
 
 ## Roadmap
@@ -200,6 +211,7 @@ Deployed on Render as a Docker web service with a Render PostgreSQL database. Th
 - Time-based progress tracking
 - Recommendation feedback ("solved" / "too hard") to tune the scoring
 - Background jobs for syncing
+- More advanced recommendation models
 
 ## License
 

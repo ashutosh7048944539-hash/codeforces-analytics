@@ -1,296 +1,90 @@
 # Codeforces Analytics & Practice Recommender
 
-A full-stack analytics dashboard that analyzes a Codeforces user's competitive programming performance and recommends unsolved problems based on their weak topics and current rating.
+A full-stack dashboard that analyzes a Codeforces user's performance and recommends unsolved problems based on their weak topics and current rating. Every recommendation comes with a plain-English explanation of why it was picked.
 
-## Live Demo
+**Live demo:** https://codeforces-analytics-2g9d.onrender.com
+(If the app has been idle, the first request may take a while to wake up.)
 
-https://codeforces-analytics-2g9d.onrender.com
+[TODO: add a screenshot or GIF of the dashboard here, e.g. `![Dashboard](docs/dashboard.png)`]
+
+## At a glance
+
+| | |
+|---|---|
+| Tests | 41 passing, run in CI against a real PostgreSQL |
+| Real users | [TODO: N students/users so far] |
+| Recommendation quality | [TODO: backtest result, e.g. "matches X% of next-solved tags"] |
+| First sync time | [TODO: e.g. "N submissions in X s"] |
 
 ## Features
 
-- Codeforces user profile synchronization
-- Current and maximum rating
-- Current and maximum rank
-- Rating history visualization
-- Total solved problem count
-- Problems solved by difficulty
-- Problems solved by topic/tag
-- Success rate by topic
-- Weak-topic detection
-- Personalized problem recommendations
-- Recommendation explanations
-- Dynamic recommendation difficulty based on current rating
-- PostgreSQL persistence
-- Alembic database migrations
-- Dockerized application
-- Automated testing with pytest
-- GitHub Actions CI
-- Automatic Codeforces problemset initialization
+- Profile sync from the official Codeforces API (rating, rank, max rating, max rank)
+- Rating history chart
+- Solved problems by difficulty and by topic/tag
+- Success rate per topic and weak-topic detection
+- Personalized problem recommendations with explanations
+- Recommendation difficulty that adapts to the user's current rating
+- PostgreSQL persistence, Alembic migrations, Docker, pytest, GitHub Actions CI
 
-## How It Works
-
-The application follows this flow:
-
-```text
-Codeforces API
-      |
-      v
-FastAPI Backend
-      |
-      +------------------+
-      |                  |
-      v                  v
-PostgreSQL          Analytics
-      |                  |
-      |                  v
-      |             Weak Topics
-      |                  |
-      +---------> Recommendation Engine
-                         |
-                         v
-                  Personalized Problems
-                         |
-                         v
-                  Jinja2 + Chart.js
-                         |
-                         v
-                    Web Dashboard
-
-
-## Recommendation Logic
-
-The recommendation engine:
-
-1. Gets the user's current Codeforces rating.
-2. Identifies topics where the user's success rate is low.
-3. Finds problems around the user's target difficulty range.
-4. Keeps problems matching the user's weak topics.
-5. Removes already solved problems.
-6. Scores the remaining problems using:
-   - weak-topic coverage
-   - weakness severity
-   - difficulty suitability
-7. Returns the highest-scoring problems.
-8. Generates a human-readable explanation for each recommendation.
-
-The target difficulty is centered approximately around:
-
-```text
-current rating + 200
-
-
-## Tech Stack
-
-### Backend
-
-- Python
-- FastAPI
-- SQLAlchemy
-- PostgreSQL
-- Alembic
-
-### Frontend
-
-- Jinja2
-- HTML
-- JavaScript
-- Chart.js
-
-### Infrastructure
-
-- Docker
-- Docker Compose
-- Render
-- GitHub Actions
-
-### Testing
-
-- pytest
-- FastAPI TestClient
-- PostgreSQL integration tests
-
-
-## Project Structure
-
-```text
-codeforces-analytics/
-│
-├── app/
-│   ├── routers/
-│   │   ├── analytics.py
-│   │   ├── health.py
-│   │   └── recommendations.py
-│   │
-│   ├── services/
-│   │   ├── analytics_service.py
-│   │   ├── problem_service.py
-│   │   ├── recommendation_service.py
-│   │   └── user_service.py
-│   │
-│   ├── codeforces_client.py
-│   ├── config.py
-│   ├── database.py
-│   ├── main.py
-│   └── models.py
-│
-├── alembic/
-│   └── versions/
-│
-├── templates/
-│   └── index.html
-│
-├── tests/
-│
-├── .env.example
-├── .gitignore
-├── alembic.ini
-├── docker-compose.yml
-├── Dockerfile
-├── pytest.ini
-├── requirements.txt
-└── README.md##
-
-
-
-Running Locally
-
-### 1. Clone the repository
+## Quick start (Docker)
 
 ```bash
 git clone https://github.com/ashutosh7048944539-hash/codeforces-analytics.git
 cd codeforces-analytics
-
-
-```
-
-### 2. Create a virtual environment
-
-Windows PowerShell:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-### 3. Install dependencies
-
-```powershell
-pip install -r requirements.txt
-```
-
-### 4. Configure environment variables
-
-Create a `.env` file:
-
-```env
-DATABASE_URL=postgresql+psycopg://cf_user:cf_password@localhost:5432/codeforces
-```
-
-### 5. Start PostgreSQL
-
-```powershell
 docker compose up -d
 ```
 
-### 6. Run migrations
+Open http://localhost:8000. On startup the container runs Alembic migrations, loads the Codeforces problemset if the database has none, and then starts the app.
 
-```powershell
-alembic upgrade head
+## How it works
+
+```mermaid
+flowchart TD
+    CF[Codeforces API] --> API[FastAPI backend]
+    API --> DB[(PostgreSQL)]
+    API --> AN[Analytics service]
+    AN --> WT[Weak-topic detection]
+    DB --> REC[Recommendation engine]
+    WT --> REC
+    REC --> UI[Jinja2 + Chart.js dashboard]
 ```
 
-### 7. Initialize the Codeforces problemset
+1. The backend fetches a user's profile, rating history, and submissions from the Codeforces API (rate-limited) and stores them in PostgreSQL.
+2. The analytics service computes solve counts and success rates by difficulty and by topic, and flags weak topics.
+3. The recommendation engine combines the weak topics with the stored problemset and returns ranked problems.
+4. The dashboard renders everything with Jinja2 templates and Chart.js.
 
-```powershell
-python -m app.services.problem_service
-```
+## Recommendation logic
 
-The problemset is downloaded only when the database does not already contain problems.
+The engine:
 
-### 8. Start the application
+1. Reads the user's current rating.
+2. Finds topics where the user's success rate is low.
+3. Selects problems around the target difficulty, centered at roughly `current rating + 200`.
+4. Keeps problems that match weak topics and removes problems the user has already solved.
+5. Scores what remains and returns the top results with an explanation for each.
 
-```powershell
-uvicorn app.main:app --reload
-```
-
-Open:
+**Score** (higher is better):
 
 ```text
-http://localhost:8000
+score = [TODO: w1] * weak_topic_coverage
+      + [TODO: w2] * weakness_severity
+      + [TODO: w3] * difficulty_suitability
 ```
 
-## Running with Docker
+- `weak_topic_coverage`: [TODO: define, e.g. fraction of the problem's tags that are weak topics]
+- `weakness_severity`: [TODO: define, e.g. 1 - success rate of the weakest matching tag]
+- `difficulty_suitability`: [TODO: define, e.g. closeness of the problem's rating to the target]
+- A topic counts as weak when [TODO: exact rule, including any minimum number of attempts].
 
-Build the application image:
+## API
 
-```powershell
-docker build -t codeforces-analytics .
-```
-
-Start the complete application:
-
-```powershell
-docker compose up -d
-```
-
-The application will be available at:
-
-```text
-http://localhost:8000
-```
-
-The Docker startup process:
-
-1. Runs Alembic migrations.
-2. Initializes the Codeforces problemset if necessary.
-3. Starts the FastAPI application.
-
-
-## API Endpoints
-
-### Health
-
-```text
-GET /health
-GET /healthz
-```
-
-### User Analytics
-
-```text
-GET /users/{handle}/analytics
-```
-
-Returns:
-
-- current rating
-- maximum rating
-- current rank
-- maximum rank
-- solved count
-- difficulty distribution
-- topic distribution
-- topic success rates
-- weak topics
-
-### Rating History
-
-```text
-GET /users/{handle}/rating-history
-```
-
-Returns the user's contest rating history.
-
-### Recommendations
-
-```text
-GET /users/{handle}/recommendations
-```
-
-Optional parameter:
-
-```text
-?limit=10
-```
+| Endpoint | Description |
+|---|---|
+| `GET /health`, `GET /healthz` | Health checks |
+| `GET /users/{handle}/analytics` | Ratings, ranks, solved count, difficulty and topic distributions, topic success rates, weak topics |
+| `GET /users/{handle}/rating-history` | Contest rating history |
+| `GET /users/{handle}/recommendations?limit=10` | Ranked practice problems with explanations |
 
 Example:
 
@@ -298,47 +92,7 @@ Example:
 GET /users/ashutoshthelearner/recommendations?limit=10
 ```
 
-## Testing
-
-Run the complete test suite:
-
-```powershell
-pytest
-```
-
-Current test status:
-
-```text
-41 passed
-```
-
-The test suite includes:
-
-- service-layer tests
-- API tests
-- Codeforces client tests
-- rate-limit tests
-- PostgreSQL integration tests
-- recommendation tests
-- health endpoint tests
-
-
-## CI
-
-GitHub Actions automatically:
-
-1. Starts PostgreSQL.
-2. Installs Python dependencies.
-3. Runs Alembic migrations.
-4. Runs the complete pytest suite.
-
-Every push to `main` and every pull request targeting `main` is tested.
-
 ## Database
-
-The application uses PostgreSQL with SQLAlchemy.
-
-Main entities:
 
 ```text
 User
@@ -350,77 +104,102 @@ User
 Problem
 ```
 
-### User
+| Table | Stores |
+|---|---|
+| User | Codeforces profile information |
+| Rating | Contest rating changes |
+| Submission | Submitted solutions and their verdicts |
+| Problem | The Codeforces problemset used for recommendations |
 
-Stores Codeforces profile information.
+Schema changes are managed with Alembic.
 
-### Rating
+## Design decisions
 
-Stores contest rating changes.
+- **Persist everything in PostgreSQL.** Submissions are stored so repeat visits do not re-download a user's whole history, and the recommender can query solved problems directly.
+- **Routers and services are separate.** Routers handle HTTP only; analytics, problems, users, and recommendations live in service modules, which keeps them testable without a web server.
+- **Rate limiting in the Codeforces client.** Requests are throttled to respect the official API limits, and this behavior is covered by tests.
+- **Explainable recommendations.** Each result carries a human-readable reason, so users can see why a problem was suggested.
+- [TODO: add 1-2 decisions with the tradeoff, e.g. why this scoring approach, why this weak-topic rule]
 
-### Submission
+## Testing and CI
 
-Stores submitted solutions and their verdicts.
+```bash
+pytest
+```
 
-### Problem
+The suite has 41 tests: service layer, API, Codeforces client, rate limiting, recommendations, health endpoints, and PostgreSQL integration tests.
 
-Stores the Codeforces problemset used by the recommendation engine.
+GitHub Actions starts PostgreSQL, installs dependencies, runs Alembic migrations, and runs the full suite on every push to `main` and every pull request targeting `main`.
 
-Alembic manages database schema migrations. 
+## Run locally (without Docker for the app)
 
+Requires Python and Docker (for PostgreSQL).
+
+```bash
+# 1. Virtual environment
+python3 -m venv .venv
+source .venv/bin/activate          # Windows PowerShell: .\.venv\Scripts\Activate.ps1
+
+# 2. Dependencies
+pip install -r requirements.txt
+
+# 3. Environment: copy .env.example to .env, or create .env with:
+#    DATABASE_URL=postgresql+psycopg://cf_user:cf_password@localhost:5432/codeforces
+
+# 4. PostgreSQL
+docker compose up -d
+
+# 5. Migrations and problemset
+alembic upgrade head
+python -m app.services.problem_service
+
+# 6. Run the app
+uvicorn app.main:app --reload
+```
+
+Open http://localhost:8000.
+
+## Project structure
+
+```text
+codeforces-analytics/
+├── app/
+│   ├── routers/            # analytics.py, health.py, recommendations.py
+│   ├── services/           # analytics, problem, recommendation, user services
+│   ├── codeforces_client.py
+│   ├── config.py
+│   ├── database.py
+│   ├── main.py
+│   └── models.py
+├── alembic/versions/       # database migrations
+├── templates/index.html
+├── tests/
+├── .github/workflows/      # CI
+├── .env.example
+├── alembic.ini
+├── docker-compose.yml
+├── Dockerfile
+├── pytest.ini
+└── requirements.txt
+```
 
 ## Deployment
 
-The application is deployed using:
+Deployed on Render as a Docker web service with a Render PostgreSQL database. The container runs Alembic migrations, initializes the problemset, then starts FastAPI on the port provided by the platform.
 
-- Render Web Service
-- Render PostgreSQL
-- Docker
+## Known limitations
 
-The production container runs:
+- The problemset is downloaded only when the database has no problems, so problems from newer contests are not added automatically. [TODO: remove this line once a refresh job exists]
+- Codeforces API responses are not cached yet; each sync calls the API directly.
+- No authentication or per-user accounts.
 
-```text
-Alembic migrations
-        ↓
-Problemset initialization
-        ↓
-FastAPI
-```
+## Roadmap
 
-The service listens on the port provided by the deployment platform.
-
-## Engineering Highlights
-
-This project demonstrates:
-
-- REST API development with FastAPI
-- Relational database design
-- SQLAlchemy ORM
-- Database migrations
-- External API integration
-- API rate limiting
-- Data synchronization
-- Analytics aggregation
-- Recommendation algorithms
-- Docker containerization
-- CI/CD
-- PostgreSQL integration testing
-- Production deployment
-
-## Future Improvements
-
-Possible extensions include:
-
-- More advanced recommendation scoring
-- Contest performance analysis
-- Rating prediction
+- Scheduled problemset refresh
+- Caching of Codeforces API responses
 - Time-based progress tracking
-- Personalized practice plans
-- Recommendation feedback and learning
-- More detailed problem difficulty analysis
-- Caching Codeforces API responses
-- Redis-based background jobs
-- Authentication and multiple user accounts
+- Recommendation feedback ("solved" / "too hard") to tune the scoring
+- Background jobs for syncing
 
 ## License
 
